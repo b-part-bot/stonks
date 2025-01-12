@@ -6,7 +6,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
 const authRoutes = require('./routes/auth');
 const sequelize = require('./models/index');
-
+const path = require('path');
 const app = express();
 
 // Set up session middleware
@@ -50,12 +50,17 @@ app.get('/auth/google/callback',
 );
 
 app.use('/auth', authRoutes);
+app.use(express.static(path.join(__dirname, 'views')));
 
+app.get('/home', (req, res) => {
+  console.log(res);
+  res.sendFile(path.join(__dirname, 'views', 'home.html'));
+});
 app.get('/', (req, res) => {
   if (req.isAuthenticated()) {
-    res.send(`Hello ${req.user.displayName}`);
+    res.sendFile(path.join(__dirname, 'views', 'home.html'));
   } else {
-    res.sendFile(__dirname + '/signup.html');
+    res.sendFile((path.join(__dirname,'views', '/signup.html')));
   }
 });
 

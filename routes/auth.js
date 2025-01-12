@@ -13,11 +13,13 @@ router.post('/signup', async (req,res)=>{
         const usr = new User({email,password});
         console.log('entered signup with user', usr)
         await usr.save();
-        res.status(201).json({ message: 'User created successfully' });
+        res.status(201).json({ message: 'User created successfully' , redirectURL: '/home'});
+
         } catch (error) {
         res.status(400).json({ error: 'User creation failed', details: error });
         }
 });
+
 
 
 // Login
