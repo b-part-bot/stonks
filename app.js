@@ -1,4 +1,3 @@
-// App.js
 require('dotenv').config();
 const express = require('express');
 const passport = require('passport');
@@ -7,6 +6,9 @@ const session = require('express-session');
 const authRoutes = require('./routes/auth');
 const sequelize = require('./models/index');
 const path = require('path');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger'); 
+
 const app = express();
 
 // Set up session middleware
@@ -21,20 +23,28 @@ passport.use(new GoogleStrategy({
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: process.env.GOOGLE_CALLBACK_URL
 },
-function(accessToken, refreshToken, profile, done) {
-  console.log('profile=', profile);
-  return done(null, profile);
-}));
+  function (accessToken, refreshToken, profile, done) {
+    console.log('profile=', profile);
+    return done(null, profile);
+  }));
 
 // Serialize user into the session
-passport.serializeUser(function(user, done) {
+passport.serializeUser(function (user, done) {
   done(null, user);
 });
 
 // Deserialize user from the session
-passport.deserializeUser(function(obj, done) {
+passport.deserializeUser(function (obj, done) {
   done(null, obj);
 });
+
+// Authentication middleware
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ message: 'Unauthorized' });
+}
 
 // Route to start the OAuth flow
 app.get('/auth/google',
@@ -42,9 +52,9 @@ app.get('/auth/google',
 );
 
 // Callback route once Google has authenticated the user
-app.get('/auth/google/callback', 
+app.get('/auth/google/callback',
   passport.authenticate('google', { failureRedirect: '/' }),
-  function(req, res) {
+  function (req, res) {
     res.redirect('/');
   }
 );
@@ -52,24 +62,31 @@ app.get('/auth/google/callback',
 app.use('/auth', authRoutes);
 app.use(express.static(path.join(__dirname, 'views')));
 
-app.get('/home', (req, res) => {
-  console.log(res);
-  res.sendFile(path.join(__dirname, 'views', 'home.html'));
-});
+// Unprotected route because landing page
 app.get('/', (req, res) => {
   if (req.isAuthenticated()) {
     res.sendFile(path.join(__dirname, 'views', 'home.html'));
   } else {
-    res.sendFile((path.join(__dirname,'views', '/signup.html')));
+    res.sendFile(path.join(__dirname, 'views', 'signup.html'));
   }
 });
 
-// Test database connection
+// Apply the authentication middleware to all routes after this 
+app.use(ensureAuthenticated);
+
+//Protected routes
+app.get('/home', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'home.html'));
+});
+
+// Swagger UI setup
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+//Authentication and testing DB
 sequelize.authenticate()
   .then(() => console.log('Postgres connected'))
   .catch(err => console.log('Database connection error:', err));
 
-// Sync models with the database
 sequelize.sync()
   .then(() => console.log('Database synced'))
   .catch(err => console.log('Error syncing database:', err));
